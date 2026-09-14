@@ -113,11 +113,11 @@ NSE_OBJS+=nse_zlib.o
 endif
 endif
 
-export SRCS = charpool.cc FingerPrintResults.cc FPEngine.cc FPModel.cc idle_scan.cc MACLookup.cc main.cc nmap.cc nmap_dns.cc nmap_error.cc nmap_ftp.cc NmapOps.cc NmapOutputTable.cc nmap_tty.cc osscan2.cc osscan.cc output.cc payload.cc portlist.cc portreasons.cc protocols.cc scan_engine.cc scan_engine_connect.cc scan_engine_raw.cc scan_lists.cc service_scan.cc services.cc string_pool.cc Target.cc NewTargets.cc TargetGroup.cc targets.cc tcpip.cc timing.cc traceroute.cc utils.cc xml.cc $(NSE_SRC)
+export SRCS = charpool.cc FingerPrintResults.cc FPEngine.cc FPModel.cc idle_scan.cc MACLookup.cc main.cc nmap.cc nmap_dns.cc nmap_error.cc nmap_ftp.cc NmapOps.cc NmapOutputTable.cc nmap_tty.cc osscan2.cc osscan.cc output.cc payload.cc portlist.cc portreasons.cc protocols.cc scan_engine.cc scan_engine_connect.cc scan_engine_raw.cc scan_lists.cc service_scan.cc services.cc string_pool.cc Target.cc NewTargets.cc TargetGroup.cc targets.cc tcpip.cc timing.cc traceroute.cc utils.cc xml.cc json.cc $(NSE_SRC)
 
-export HDRS = charpool.h FingerPrintResults.h FPEngine.h idle_scan.h MACLookup.h nmap_amigaos.h nmap_dns.h nmap_error.h nmap.h nmap_ftp.h NmapOps.h NmapOutputTable.h nmap_tty.h nmap_winconfig.h osscan2.h osscan.h output.h payload.h portlist.h portreasons.h probespec.h protocols.h scan_engine.h scan_engine_connect.h scan_engine_raw.h service_scan.h scan_lists.h services.h string_pool.h NewTargets.h TargetGroup.h Target.h targets.h tcpip.h timing.h traceroute.h utils.h xml.h $(NSE_HDRS)
+export HDRS = charpool.h FingerPrintResults.h FPEngine.h idle_scan.h MACLookup.h nmap_amigaos.h nmap_dns.h nmap_error.h nmap.h nmap_ftp.h NmapOps.h NmapOutputTable.h nmap_tty.h nmap_winconfig.h osscan2.h osscan.h output.h payload.h portlist.h portreasons.h probespec.h protocols.h scan_engine.h scan_engine_connect.h scan_engine_raw.h service_scan.h scan_lists.h services.h string_pool.h NewTargets.h TargetGroup.h Target.h targets.h tcpip.h timing.h traceroute.h utils.h xml.h json.h $(NSE_HDRS)
 
-OBJS = charpool.o FingerPrintResults.o FPEngine.o FPModel.o idle_scan.o MACLookup.o nmap_dns.o nmap_error.o nmap.o nmap_ftp.o NmapOps.o NmapOutputTable.o nmap_tty.o osscan2.o osscan.o output.o payload.o portlist.o portreasons.o protocols.o scan_engine.o scan_engine_connect.o scan_engine_raw.o scan_lists.o service_scan.o services.o string_pool.o NewTargets.o TargetGroup.o Target.o targets.o tcpip.o timing.o traceroute.o utils.o xml.o $(NSE_OBJS)
+OBJS = charpool.o FingerPrintResults.o FPEngine.o FPModel.o idle_scan.o MACLookup.o nmap_dns.o nmap_error.o nmap.o nmap_ftp.o NmapOps.o NmapOutputTable.o nmap_tty.o osscan2.o osscan.o output.o payload.o portlist.o portreasons.o protocols.o scan_engine.o scan_engine_connect.o scan_engine_raw.o scan_lists.o service_scan.o services.o string_pool.o NewTargets.o TargetGroup.o Target.o targets.o tcpip.o timing.o traceroute.o utils.o xml.o json.o $(NSE_OBJS)
 
 # %.o : %.cc -- nope this is a GNU extension
 .cc.o:
@@ -459,10 +459,16 @@ check-nsock:
 check-zenmap:
 	@cd $(ZENMAPDIR)/test && $(PYTHON) run_tests.py
 
-check-nmap: tests/nmap_dns_test tests/expr_match_test tests/cstring_unescape_test
+check-nmap: tests/nmap_dns_test tests/expr_match_test tests/cstring_unescape_test tests/json_output_test
 	for test in $^; do ./$$test; done
 
-check: @NCAT_CHECK@ @NSOCK_CHECK@ @ZENMAP_CHECK@ @NSE_CHECK@ @NDIFF_CHECK@ check-nmap
+# End-to-end check that -oJ reports the same data as -oX. It scans 127.0.0.1
+# with scan types that do not require privileges, so it can run anywhere the
+# unit tests do.
+check-json: $(TARGET)
+	$(PYTHON) $(NDIR)/tests/json_xml_equivalence.py ./$(TARGET)
+
+check: @NCAT_CHECK@ @NSOCK_CHECK@ @ZENMAP_CHECK@ @NSE_CHECK@ @NDIFF_CHECK@ check-nmap check-json
 
 FUZZ_SRCS := $(wildcard fuzz/fuzz_*.cc)
 FUZZERS := $(FUZZ_SRCS:.cc=)
@@ -536,4 +542,4 @@ whois db2-discover http-crossdomainxml http-email-harvest \
 http-wordpress-plugins http-wp-plugins smb-check-vulns \
 )
 
-.PHONY: all clean install uninstall check static debug prerelease release-tarballs release-rpms web distclean lua-format
+.PHONY: all clean install uninstall check check-json static debug prerelease release-tarballs release-rpms web distclean lua-format

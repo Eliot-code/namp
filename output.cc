@@ -473,6 +473,7 @@ static char *formatScriptOutput(const ScriptResult *sr) {
 
 /* Output a list of ports, compressing ranges like 80-85 */
 static void output_rangelist_given_ports(int logt, const unsigned short *ports, int numports);
+static std::string rangelist_given_ports(const unsigned short *ports, int numports);
 
 /* Prints the familiar Nmap tabular output showing the "interesting"
    ports found on the machine.  It also handles the Machine/Grepable
@@ -583,9 +584,8 @@ void printportoutput(const Target *currenths, const PortList *plist) {
         xml_attribute("reason", "%s", reason_str(currentr->reason_id, SINGULAR));
         xml_attribute("count", "%d", currentr->count);
         xml_attribute("proto", "%s", IPPROTO2STR(currentr->proto));
-        xml_write_raw(" ports=\"");
-        output_rangelist_given_ports(LOG_XML, currentr->ports, currentr->count);
-        xml_write_raw("\"");
+        xml_attribute("ports", "%s",
+            rangelist_given_ports(currentr->ports, currentr->count).c_str());
         xml_close_empty_tag();
         xml_newline();
 
@@ -935,6 +935,7 @@ void log_vwrite(int logt, const char *fmt, va_list ap) {
       case LOG_MACHINE:
       case LOG_SKID:
       case LOG_XML:
+      case LOG_JSON:
         if (logtype == LOG_SKID_NOXLT)
             l = LOG_SKID;
         else
@@ -998,9 +999,14 @@ void log_close(int logt) {
   int i;
   if (logt < 0 || logt > LOG_FILE_MASK)
     return;
-  for (i = 0; logt; logt >>= 1, i++)
-    if (o.logfd[i] && (logt & 1))
+  for (i = 0; logt; logt >>= 1, i++) {
+    if (o.logfd[i] && (logt & 1)) {
       fclose(o.logfd[i]);
+      /* Clear the slot: anything that logs after a close would otherwise be
+         writing through a dangling FILE *. */
+      o.logfd[i] = NULL;
+    }
+  }
 }
 
 /* Flush the given log stream(s).  In other words, all buffered output
@@ -1076,11 +1082,13 @@ int log_open(int logt, bool append, const char *filename) {
 }
 
 
-/* The items in ports should be
-   in sequential order for space savings and easier to read output.  Outputs the
-   rangelist to the log stream given (such as LOG_MACHINE or LOG_XML) */
-static void output_rangelist_given_ports(int logt, const unsigned short *ports,
+/* The items in ports should be in sequential order for space savings and
+   easier to read output.  Returns the rangelist as a string, like
+   "22,80,443-445". */
+static std::string rangelist_given_ports(const unsigned short *ports,
                                          int numports) {
+  std::string result;
+  char buf[32];
   int start, end;
 
   start = 0;
@@ -1089,13 +1097,27 @@ static void output_rangelist_given_ports(int logt, const unsigned short *ports,
     while (end + 1 < numports && ports[end + 1] == ports[end] + 1)
       end++;
     if (start > 0)
-      log_write(logt, ",");
+      result += ",";
     if (start == end)
-      log_write(logt, "%hu", ports[start]);
+      Snprintf(buf, sizeof(buf), "%hu", ports[start]);
     else
-      log_write(logt, "%hu-%hu", ports[start], ports[end]);
+      Snprintf(buf, sizeof(buf), "%hu-%hu", ports[start], ports[end]);
+    result += buf;
     start = end + 1;
   }
+
+  return result;
+}
+
+/* The items in ports should be
+   in sequential order for space savings and easier to read output.  Outputs the
+   rangelist to the log stream given (such as LOG_MACHINE or LOG_XML) */
+static void output_rangelist_given_ports(int logt, const unsigned short *ports,
+                                         int numports) {
+  std::string rangelist = rangelist_given_ports(ports, numports);
+
+  if (!rangelist.empty())
+    log_write(logt, "%s", rangelist.c_str());
 }
 
 /* Output the list of ports scanned to the top of machine parseable
@@ -1159,9 +1181,7 @@ static void doscaninfo(const char *type, const char *proto,
   }
   xml_attribute("protocol", "%s", proto);
   xml_attribute("numservices", "%d", numports);
-  xml_write_raw(" services=\"");
-  output_rangelist_given_ports(LOG_XML, ports, numports);
-  xml_write_raw("\"");
+  xml_attribute("services", "%s", rangelist_given_ports(ports, numports).c_str());
   xml_close_empty_tag();
   xml_newline();
 }

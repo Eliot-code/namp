@@ -88,6 +88,7 @@
 #include "nmap_error.h"
 #include "utils.h"
 #include "xml.h"
+#include "json.h"
 #include "scan_lists.h"
 #include "payload.h"
 
@@ -284,7 +285,9 @@ static void printusage() {
          "OUTPUT:\n"
          "  -oN/-oX/-oS/-oG <file>: Output scan in normal, XML, s|<rIpt kIddi3,\n"
          "     and Grepable format, respectively, to the given filename.\n"
-         "  -oA <basename>: Output in the three major formats at once\n"
+         "  -oJ <file>: Output scan in JSON format to the given filename\n"
+         "  --json-lines: Write JSON output as one object per line (NDJSON)\n"
+         "  -oA <basename>: Output in the four major formats at once\n"
          "  -v: Increase verbosity level (use -vv or more for greater effect)\n"
          "  -d: Increase debugging level (use -dd or more for greater effect)\n"
          "  --reason: Display the reason a port is in a particular state\n"
@@ -468,6 +471,8 @@ public:
     this->af                    = AF_UNSPEC;
     this->decoys                = false;
     this->raw_scan_options      = false;
+    this->jsonfilename          = NULL;
+    this->json_lines            = false;
   }
 
   // Pre-specified timing parameters.
@@ -482,6 +487,8 @@ public:
   double pre_scripttimeout;
 #endif
   char  *machinefilename, *kiddiefilename, *normalfilename, *xmlfilename;
+  char  *jsonfilename;
+  bool  json_lines;
   bool  iflist, decoys, advanced, raw_scan_options;
   char  *exclude_spec, *exclude_file;
   char  *spoofSource, *decoy_arguments;
@@ -579,6 +586,8 @@ void parse_options(int argc, char **argv) {
     {"oS", required_argument, 0, 0},
     {"oH", required_argument, 0, 0},
     {"oX", required_argument, 0, 0},
+    {"oJ", required_argument, 0, 0},
+    {"json-lines", no_argument, 0, 0},
     {"iL", required_argument, 0, 0},
     {"iR", required_argument, 0, 0},
     {"sI", required_argument, 0, 0},
@@ -908,10 +917,18 @@ void parse_options(int argc, char **argv) {
             fatal("Can't use -oX multiple times or with -oA.");
           test_file_name(optarg, long_options[option_index].name);
           delayed_options.xmlfilename = logfilename(optarg, &local_time);
+        } else if (strcmp(long_options[option_index].name, "oJ") == 0) {
+          if (delayed_options.jsonfilename)
+            fatal("Can't use -oJ multiple times or with -oA.");
+          test_file_name(optarg, long_options[option_index].name);
+          delayed_options.jsonfilename = logfilename(optarg, &local_time);
+        } else if (strcmp(long_options[option_index].name, "json-lines") == 0) {
+          delayed_options.json_lines = true;
         } else if (strcmp(long_options[option_index].name, "oA") == 0) {
           char buf[MAXPATHLEN];
-          if (delayed_options.normalfilename || delayed_options.machinefilename || delayed_options.xmlfilename)
-            fatal("Can't use -oA multiple times or with -oN, -oX, or -oG.");
+          if (delayed_options.normalfilename || delayed_options.machinefilename
+              || delayed_options.xmlfilename || delayed_options.jsonfilename)
+            fatal("Can't use -oA multiple times or with -oN, -oX, -oJ, or -oG.");
           char *logname = logfilename(optarg, &local_time);
           if (strlen(logname) > (MAXPATHLEN - sizeof(".gnmap")))
             fatal("Filename too long!");
@@ -922,6 +939,8 @@ void parse_options(int argc, char **argv) {
           delayed_options.machinefilename = strdup(buf);
           Snprintf(buf, sizeof(buf), "%s.xml", logname);
           delayed_options.xmlfilename = strdup(buf);
+          Snprintf(buf, sizeof(buf), "%s.json", logname);
+          delayed_options.jsonfilename = strdup(buf);
           free(logname);
         } else if (strcmp(long_options[option_index].name, "thc") == 0) {
           log_write(LOG_STDOUT, "!!Greets to Van Hauser, Plasmoid, Skyper and the rest of THC!!\n");
@@ -1561,6 +1580,18 @@ void  apply_delayed_options() {
   if (delayed_options.xmlfilename) {
     log_open(LOG_XML, o.append_output, delayed_options.xmlfilename);
     free(delayed_options.xmlfilename);
+  }
+  if (delayed_options.jsonfilename) {
+    log_open(LOG_JSON, o.append_output, delayed_options.jsonfilename);
+    free(delayed_options.jsonfilename);
+    /* Only now does the XML writer start mirroring into a JSON document. */
+    json_output_enable(delayed_options.json_lines);
+    if (o.append_output && !delayed_options.json_lines)
+      error("WARNING: --append-output with -oJ concatenates JSON documents, "
+            "which is not a single valid document. Use --json-lines for an "
+            "appendable stream.");
+  } else if (delayed_options.json_lines) {
+    error("WARNING: --json-lines has no effect without -oJ.");
   }
 
   if (o.verbose > 1)

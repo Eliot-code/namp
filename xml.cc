@@ -119,6 +119,7 @@ opened, calling these functions has no effect.
 */
 
 #include "output.h"
+#include "json.h"
 #include "xml.h"
 #include <nbase.h>
 
@@ -127,6 +128,12 @@ opened, calling these functions has no effect.
 #include <stdio.h>
 #include <list>
 
+/* The JSON writer (json.cc) is driven from here rather than from a second set
+   of call sites in output.cc: every fact Nmap reports already passes through
+   this file, so mirroring it is what keeps the two output formats from
+   drifting apart. All of the json_mirror_* calls are no-ops unless -oJ was
+   given. */
+
 struct xml_writer {
   /* Sanity checking: Don't open a new tag while still defining
      attributes for another, like "<elem1<elem2". */
@@ -134,6 +141,9 @@ struct xml_writer {
   /* Has the root element been started yet? If so, and if
      element_stack.size() == 0, then the document is finished. */
   bool root_written;
+  /* Text written inside a comment is not element content, and must not be
+     mirrored into the JSON document. */
+  bool in_comment;
   std::list<const char *> element_stack;
 };
 
@@ -307,9 +317,14 @@ int xml_write_escaped_v(const char *fmt, va_list va) {
   if (s == NULL)
     return -1;
   esc_s = escape(s);
-  free(s);
-  if (esc_s == NULL)
+  if (esc_s == NULL) {
+    free(s);
     return -1;
+  }
+
+  if (!xml.in_comment)
+    json_mirror_characters(s);
+  free(s);
 
   log_write(LOG_XML, "%s", esc_s);
   free(esc_s);
@@ -341,12 +356,14 @@ int xml_start_document(const char *rootnode) {
 
 int xml_start_comment() {
   log_write(LOG_XML, "<!--");
+  xml.in_comment = true;
 
   return 0;
 }
 
 int xml_end_comment() {
   log_write(LOG_XML, "-->");
+  xml.in_comment = false;
 
   return 0;
 }
@@ -377,6 +394,9 @@ int xml_open_start_tag(const char *name, const bool write) {
   xml.element_stack.push_back(name);
   xml.tag_open = true;
   xml.root_written = true;
+  /* Mirrored even when write is false (--resume reopens the root element
+     without writing it), because the JSON document is always written fresh. */
+  json_mirror_start_element(name);
 
   return 0;
 }
@@ -398,6 +418,7 @@ int xml_close_empty_tag() {
   xml.element_stack.pop_back();
   log_write(LOG_XML, "/>");
   xml.tag_open = false;
+  json_mirror_end_element();
 
   return 0;
 }
@@ -421,6 +442,7 @@ int xml_end_tag() {
   xml.element_stack.pop_back();
 
   log_write(LOG_XML, "</%s>", name);
+  json_mirror_end_element();
 
   return 0;
 }
@@ -440,9 +462,14 @@ int xml_attribute(const char *name, const char *fmt, ...) {
   if (val == NULL)
     return -1;
   esc_val = escape(val);
-  free(val);
-  if (esc_val == NULL)
+  if (esc_val == NULL) {
+    free(val);
     return -1;
+  }
+
+  /* The JSON writer gets the unescaped value: it does its own quoting. */
+  json_mirror_attribute(name, val);
+  free(val);
 
   log_write(LOG_XML, " %s=\"%s\"", name, esc_val);
   free(esc_val);

@@ -70,12 +70,13 @@
 
 #include <nbase.h> // __attribute__
 
-#define LOG_NUM_FILES 4 /* # of values that actual files (they must come first */
-#define LOG_FILE_MASK 15 /* The mask for log types in the file array */
+#define LOG_NUM_FILES 5 /* # of values that actual files (they must come first */
+#define LOG_FILE_MASK 31 /* The mask for log types in the file array */
 #define LOG_NORMAL 1
 #define LOG_MACHINE 2
 #define LOG_SKID 4
 #define LOG_XML 8
+#define LOG_JSON 16
 #define LOG_STDOUT 1024
 #define LOG_STDERR 2048
 #define LOG_SKID_NOXLT 4096
@@ -83,7 +84,7 @@
 
 #define LOG_PLAIN LOG_NORMAL|LOG_SKID|LOG_STDOUT
 
-#define LOG_NAMES {"normal", "machine", "$Cr!pT |<!dd!3", "XML"}
+#define LOG_NAMES {"normal", "machine", "$Cr!pT |<!dd!3", "XML", "JSON"}
 
 #define PCAP_OPEN_ERRMSG "Call to pcap_open_live() failed three times. "\
 "There are several possible reasons for this, depending on your operating "\

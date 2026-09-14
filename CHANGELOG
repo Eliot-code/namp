@@ -1,5 +1,27 @@
 #Nmap Changelog ($Id$); -*-text-*-
 
+o [Output] Added native JSON output with -oJ. The JSON document is produced by
+  mirroring the XML writer, so it carries exactly the same information as -oX,
+  including structured NSE script results, which become ordinary JSON objects
+  and arrays under each script's "data" key instead of nested <table> and
+  <elem> elements. Hosts are written as they finish, so memory use does not
+  grow with the size of the scan. See docs/nmap-json.md.
+
+o [Output] Added --json-lines, which makes -oJ emit newline-delimited JSON
+  (one object per line, each tagged with a "type"). Each line is complete on
+  its own, so output can be streamed into another process as the scan runs,
+  appended to with --append-output, and still parsed if the scan is
+  interrupted.
+
+o [Output] -oA now also writes <basename>.json.
+
+o [Output] The "services" attribute of <scaninfo> and the "ports" attribute of
+  <extrareasons> are now written through the normal attribute path rather than
+  as raw XML, which is what lets them appear in JSON output as well.
+
+o [Output] log_close() now clears the file handle it closed, instead of
+  leaving a dangling FILE * behind in o.logfd[].
+
 o [NSE] Introduced execution time and memory allocation limits for NSE scripts.
   Script threads that run for more than 5 seconds without yielding (e.g.
   calling a socket operation) will be killed. Memory allocations beyond 400MB

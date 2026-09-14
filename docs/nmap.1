@@ -207,7 +207,9 @@ FIREWALL/IDS EVASION AND SPOOFING:
 OUTPUT:
   \-oN/\-oX/\-oS/\-oG <file>: Output scan in normal, XML, s|<rIpt kIddi3,
      and Grepable format, respectively, to the given filename\&.
-  \-oA <basename>: Output in the three major formats at once
+  \-oJ <file>: Output scan in JSON format to the given filename
+  \-\-json\-lines: Write JSON output as one object per line (NDJSON)
+  \-oA <basename>: Output in the four major formats at once
   \-v: Increase verbosity level (use \-vv or more for greater effect)
   \-d: Increase debugging level (use \-dd or more for greater effect)
   \-\-reason: Display the reason a port is in a particular state
@@ -2058,6 +2060,52 @@ or
 options to create portable XML files that render as HTML on any web\-connected machine\&.
 .RE
 .PP
+\fB\-oJ \fR\fB\fIfilespec\fR\fR (JSON output)
+.RS 4
+Requests that JSON output be directed to the given filename\&. The JSON document carries the same information as the XML output (\fB\-oX\fR): it is produced by mirroring the XML writer, so anything Nmap reports in XML, including structured NSE script results, appears in the JSON too\&.
+.sp
+The document is an object whose members are the attributes of the XML
+\fInmaprun\fR
+element, plus its children\&. Elements that can repeat are always arrays with a plural key, so a single open port is still
+\fBhosts[0]\&.ports[0]\fR
+and never an object\&. Container elements such as
+\fIhostnames\fR,
+\fIports\fR
+and
+\fIhostscript\fR
+are transparent: their children are lifted into the enclosing object\&. Attributes that the DTD declares numeric become JSON numbers, and
+\fItimedout\fR
+becomes a boolean; a value that is not a valid JSON number (traceroute writes
+rtt="\-\-"
+for a hop that did not answer) stays a string\&.
+.sp
+Structured output from NSE scripts, which XML represents as nested
+\fItable\fR
+and
+\fIelem\fR
+elements, is turned into ordinary JSON under the script's
+\fBdata\fR
+key: keyed children become object members and unkeyed children become array items\&. This makes script results usable without a second parser\&.
+.sp
+Host objects are written as each host finishes, so the file grows during the scan and memory use does not depend on the number of hosts scanned\&. See
+\fB\-\-json\-lines\fR
+for a format that stays valid when a scan is interrupted, and
+\fIdocs/nmap\-json\&.md\fR
+in the source distribution for the full mapping\&.
+.RE
+.PP
+\fB\-\-json\-lines\fR (Newline\-delimited JSON output)
+.RS 4
+Changes
+\fB\-oJ\fR
+from writing one JSON document to writing one JSON object per line (NDJSON)\&. The first line is the scan metadata, each host is a line of its own, and the run statistics are the last line; every line carries a
+\fBtype\fR
+member saying which it is\&.
+.sp
+Because each line is complete on its own, this format can be streamed into a pipeline as the scan runs, can be appended to with
+\fB\-\-append\-output\fR, and stays usable if the scan is interrupted\&. It is the format to prefer for long scans and for feeding other tools\&.
+.RE
+.PP
 \fB\-oS \fR\fB\fIfilespec\fR\fR (ScRipT KIdd|3 oUTpuT)
 .RS 4
 Script kiddie output is like interactive output, except that it is post\-processed to better suit the l33t HaXXorZ who previously looked down on Nmap due to its consistent capitalization and spelling\&. Humor impaired people should note that this option is making fun of the script kiddies before flaming me for supposedly
@@ -2099,9 +2147,10 @@ from \m[blue]\fB\%https://nmap.org/book/output-formats-grepable-output.html\fR\m
 .RS 4
 As a convenience, you may specify
 \fB\-oA \fR\fB\fIbasename\fR\fR
-to store scan results in normal, XML, and grepable formats at once\&. They are stored in
+to store scan results in normal, XML, JSON, and grepable formats at once\&. They are stored in
 \fIbasename\fR\&.nmap,
-\fIbasename\fR\&.xml, and
+\fIbasename\fR\&.xml,
+\fIbasename\fR\&.json, and
 \fIbasename\fR\&.gnmap, respectively\&. As with most programs, you can prefix the filenames with a directory path, such as
 ~/nmaplogs/foocorp/
 on Unix or
