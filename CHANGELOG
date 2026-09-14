@@ -1,5 +1,19 @@
 #Nmap Changelog ($Id$); -*-text-*-
 
+o [NSE] Added http-openapi-discover, which looks for an exposed OpenAPI
+  (Swagger) description document and reports the specification version, API
+  title and version, declared servers, path and operation counts, and security
+  schemes. A published description document is a complete map of an API's
+  attack surface and is often reachable without authentication. The parsing
+  lives in the new openapi.lua library, which is covered by unit tests.
+
+o [NSE] Added http-graphql-introspection, which finds GraphQL endpoints (they
+  answer at a single path, so path-based discovery misses them) and reports
+  whether introspection is enabled. An endpoint that answers an introspection
+  query discloses its entire type system, including queries and mutations that
+  were never meant to be public. The detection logic lives in the new
+  graphql.lua library, which is covered by unit tests.
+
 o [Output] Added native JSON output with -oJ. The JSON document is produced by
   mirroring the XML writer, so it carries exactly the same information as -oX,
   including structured NSE script results, which become ordinary JSON objects
