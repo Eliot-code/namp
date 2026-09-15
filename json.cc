@@ -761,8 +761,10 @@ struct json_writer {
   JsonElement *root;    /* <nmaprun>, for its attributes */
   JsonElement *subtree; /* the depth-1 element currently being built */
   std::vector<JsonElement *> stack;
-  /* Small elements that are not hosts, buffered so that the enclosing object
-     can be written in a sensible order. */
+  /* Top-level elements held back until it is known where they belong in the
+     enclosing object: the preamble, which goes into the header, and runstats,
+     which goes at the end.  In line mode there is no enclosing object, so only
+     the preamble is ever held. */
   std::vector<std::pair<std::string, JsonValue> > pending;
 
   json_writer() : enabled(false), lines(false), finished(false),
@@ -853,10 +855,11 @@ static void buffer_pending(const std::string &key, const JsonValue &value, bool 
 }
 
 /* Write the document header: the root attributes plus everything buffered so
-   far except runstats, which belongs at the end.  Called lazily, when the
-   first host is ready or when the document is closed, because the elements
-   that precede the hosts (scaninfo, verbose, debugging) have to be in hand
-   before the object can be written in order. */
+   far except runstats, which belongs at the end.  It is written as soon as the
+   preamble is complete -- the DTD ends it with <debugging> -- rather than at
+   the first host, so that an interrupted scan still leaves the start of a
+   document behind.  It cannot be written any earlier than that, because the
+   preamble elements have to be in hand to appear in order. */
 static void write_header() {
   size_t i;
   std::vector<std::pair<std::string, JsonValue> > rest;
