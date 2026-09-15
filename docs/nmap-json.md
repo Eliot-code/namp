@@ -186,6 +186,10 @@ consumed as it is produced, stays valid if the scan is interrupted, and can be
 appended to with `--append-output`. Appending is not meaningful for the single
 document form, and Nmap warns when `--append-output` is used with it.
 
+`--resume` re-runs Nmap with `--append-output`, so resuming a scan that wrote
+`-oJ` appends a second document to the file, exactly as it appends a second
+document to an XML file. Use `--json-lines` for scans that may need resuming.
+
 Records are written when they happen, not collected at the end, so the stream
 doubles as live telemetry: a wrapper can drive a progress bar from
 `taskprogress` records (which Nmap emits with `--stats-every`) while consuming

@@ -113,33 +113,49 @@ static nsock_pool get_pool (lua_State *L)
   return *nspp;
 }
 
+/* Render a short buffer for trace output, escaping the bytes that are not
+   printable as \xNN. If escaping would more than double the length, the buffer
+   is mostly binary and a hexdump reads better, so that is used instead.
+   The result is allocated; the caller frees it. */
 static char *hexify (const unsigned char *str, size_t len)
 {
   char *ret = NULL;
+
   if (len <= 32) {
-    int newlen = len;
-    for (int i=0; i < len && newlen < 2*len; i++) {
-      if (!isprint((int)(unsigned char) str[i])) {
-        newlen += 3; // '\\', 'x', and hex nibble
+    size_t newlen = len;
+    size_t i;
+
+    for (i = 0; i < len && newlen < 2 * len; i++) {
+      if (!isprint((int) str[i])) {
+        newlen += 3; // "\xNN" takes 4 bytes where the byte took 1
       }
     }
-    if (newlen < 2*len) {
+
+    if (newlen < 2 * len) {
+      /* The read index walks the input and the write index walks the output:
+         they are not the same, because an escape writes four bytes for one. */
+      size_t pos = 0;
+
       newlen++; //ensure space for \0
       ret = (char *) safe_zalloc(newlen);
-      for (int i=0; i < len && newlen > 0;) {
+      for (i = 0; i < len; i++) {
         unsigned char c = str[i];
         if (isprint((int) c)) {
-          ret[i++] = (char) c;
-          newlen--;
+          if (pos + 1 >= newlen)
+            break;
+          ret[pos++] = (char) c;
         }
         else {
-          int written = Snprintf(ret + i, newlen, "\\x%02x", c);
+          int written;
+          if (pos + 4 >= newlen)
+            break;
+          written = Snprintf(ret + pos, newlen - pos, "\\x%02x", c);
           if (written < 0)
             break;
-          i += written;
-          newlen -= written;
+          pos += written;
         }
       }
+      ret[pos] = '\0';
     }
   }
   if (ret == NULL) {

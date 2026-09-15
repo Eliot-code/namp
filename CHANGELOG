@@ -1,5 +1,11 @@
 #Nmap Changelog ($Id$); -*-text-*-
 
+o [NSE] Fixed --script-trace output silently dropping bytes. The escaper used
+  one index for both reading the input and writing the output, so every
+  unprintable byte it escaped as \xNN skipped three input bytes:
+  "AB<0x01>CDEFGHIJKLMNOP" was traced as "AB\x01FGHIJKLMNOP". This also
+  removes the only -Wsign-compare warnings in the Nmap build.
+
 o [Nsock] Fixed an assertion failure that aborted Nmap when --proxies was given
   a specification with an empty element, such as a leading, trailing or doubled
   comma. proxy_node_new() asserted that the element was non-empty, which made
