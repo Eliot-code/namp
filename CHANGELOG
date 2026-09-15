@@ -1,5 +1,11 @@
 #Nmap Changelog ($Id$); -*-text-*-
 
+o [Build] Building from a git clone no longer requires autoconf. Because a
+  clone gives every file the same timestamp, make often tried to regenerate
+  configure on an unmodified tree and died with "autoconf: not found" before
+  compiling anything. The rules now fall back to the configure already in the
+  tree, warning what to install; with autoconf present they behave as before.
+
 o [Nbase] Fixed undefined behavior in the address-set trie: four places shifted
   1 into the sign bit of an int ((1<<31)), which is undefined in C and was
   reported by UndefinedBehaviorSanitizer on every scan that matches a target

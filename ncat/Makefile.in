@@ -133,8 +133,13 @@ Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
 config.status: $(srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
 	$(SHELL) ./config.status --recheck
 
+# A git clone gives every file the same checkout time, so make often decides
+# configure is out of date on a tree nobody has edited. Regenerating it is only
+# needed by someone who changed configure.ac, so fall back to the configure
+# that is already there rather than failing the build on a machine without
+# autoconf installed.
 $(srcdir)/configure: $(srcdir)/configure.ac $(CONFIGURE_DEPENDENCIES)
-	cd $(srcdir) && autoconf
+	cd $(srcdir) && { autoconf || { echo "WARNING: autoconf is not installed; keeping the existing configure. Install autoconf if you changed configure.ac." >&2; touch configure; }; }
 
 config.h:
 	@if test ! -f config.h; then \

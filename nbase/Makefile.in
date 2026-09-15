@@ -39,8 +39,13 @@ clean:
 distclean: clean
 	rm -f Makefile config.cache config.log config.status nbase_config.h
 
+# A git clone gives every file the same checkout time, so make often decides
+# configure is out of date on a tree nobody has edited. Regenerating it is only
+# needed by someone who changed configure.ac, so fall back to the configure
+# that is already there rather than failing the build on a machine without
+# autoconf installed.
 configure: configure.ac
-	autoconf
+	{ autoconf || { echo "WARNING: autoconf is not installed; keeping the existing configure. Install autoconf if you changed configure.ac." >&2; touch configure; }; }
 
 Makefile: Makefile.in config.status
 	./config.status
