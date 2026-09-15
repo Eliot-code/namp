@@ -29,7 +29,9 @@ EXE = tests_main
 
 all: $(SRC) $(EXE)
 
-$(EXE): $(OBJ)
+# Relink when the libraries under test change, so that a run of the suite
+# cannot silently exercise a stale copy of nsock.
+$(EXE): $(OBJ) $(NSOCKLIB) $(NBASELIB)
 	$(CC) $(LDFLAGS) $(OBJ) -o $@ $(NSOCKLIB) $(NBASELIB) $(LIBS)
 
 .c.o:

@@ -2104,6 +2104,12 @@ member saying which it is\&.
 .sp
 Because each line is complete on its own, this format can be streamed into a pipeline as the scan runs, can be appended to with
 \fB\-\-append\-output\fR, and stays usable if the scan is interrupted\&. It is the format to prefer for long scans and for feeding other tools\&.
+.sp
+Records are written when they happen rather than collected at the end, so the stream also carries the scan's progress: with
+\fB\-v\fR
+each task start and end is a record, and with
+\fB\-\-stats\-every\fR
+so is each progress report, which lets a wrapper show a progress bar while it consumes hosts\&. A consumer should ignore record types it does not recognize\&.
 .RE
 .PP
 \fB\-oS \fR\fB\fIfilespec\fR\fR (ScRipT KIdd|3 oUTpuT)

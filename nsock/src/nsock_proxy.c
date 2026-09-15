@@ -351,8 +351,18 @@ fail:
 
 static struct proxy_node *proxy_node_new(const char *proxystr, const char *end) {
   int i;
-  size_t proxystr_len = end - proxystr;
-  assert(end > proxystr);
+  size_t proxystr_len;
+
+  /* An empty element, which is what a leading, trailing or doubled comma in
+   * the proxy specification produces. That is bad input from the user, not a
+   * programming error, so it is rejected like any other malformed
+   * specification instead of aborting the process. */
+  if (end <= proxystr) {
+    nsock_log_error("Empty proxy specification");
+    return NULL;
+  }
+
+  proxystr_len = end - proxystr;
 
   for (i = 0; ProxyBackends[i] != NULL; i++) {
     const struct proxy_spec *pspec;

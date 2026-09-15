@@ -144,7 +144,10 @@ Attributes that the DTD declares numeric become JSON numbers:
     rpcnum rtt rttvar seconds srtt start starttime time to total ttl up value
 
 `timedout` becomes a boolean. Everything else is a string, including `version`
-and other values that merely look like numbers. A numeric attribute whose value
+and other values that merely look like numbers. Values reported by NSE scripts
+are always strings: the XML representation of script output carries no type
+information, so `"paths": "37"` from a script is quoted while `"portid": 37`
+from Nmap itself is not. A numeric attribute whose value
 is not a valid JSON number keeps its text: traceroute writes `rtt="--"` for a
 hop that did not answer, and that stays `"--"`.
 
@@ -170,16 +173,37 @@ for feeding another process, use `--json-lines`, which writes newline-delimited
 JSON (NDJSON) instead:
 
 ```
-{"type":"scan","scanner":"nmap","args":"...","start":1789429192,...}
-{"type":"host","starttime":1789429192,"status":{"state":"up",...},...}
-{"type":"host","starttime":1789429193,"status":{"state":"up",...},...}
-{"type":"runstats","finished":{"time":1789429194,...},"hosts":{"up":2,...}}
+{"type":"scan","scanner":"nmap","args":"...","start":1789430364,...}
+{"type":"taskbegin","task":"Connect Scan","time":1789430364}
+{"type":"taskend","task":"Connect Scan","time":1789430366,"extrainfo":"2 total ports"}
+{"type":"host","starttime":1789430364,"status":{"state":"up",...},...}
+{"type":"host","starttime":1789430365,"status":{"state":"up",...},...}
+{"type":"runstats","finished":{"time":1789430366,...},"hosts":{"up":2,...}}
 ```
 
 Every line is a complete object with a `type` member, so the output can be
 consumed as it is produced, stays valid if the scan is interrupted, and can be
 appended to with `--append-output`. Appending is not meaningful for the single
 document form, and Nmap warns when `--append-output` is used with it.
+
+Records are written when they happen, not collected at the end, so the stream
+doubles as live telemetry: a wrapper can drive a progress bar from
+`taskprogress` records (which Nmap emits with `--stats-every`) while consuming
+hosts as they are finished. The record types are:
+
+| `type` | When | Contents |
+|---|---|---|
+| `scan` | Once, at the start | Root attributes, `scaninfo`, `verbose`, `debugging` |
+| `taskbegin`, `taskend` | With `-v` | Task name, time, extra info |
+| `taskprogress` | With `--stats-every` | Percent complete, estimated time to completion |
+| `hosthint` | With `-v` | A host that answered discovery, before it is scanned |
+| `target` | As encountered | A target specification that was skipped |
+| `host` | As each host finishes | The same object as in the `hosts` array |
+| `prescript`, `postscript` | Around the scan | NSE pre-scan and post-scan results |
+| `runstats` | Once, at the end | Totals and exit status |
+
+A consumer should ignore record types it does not know, since new ones follow
+whatever the XML output grows.
 
 ## Recipes
 

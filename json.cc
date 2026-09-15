@@ -954,6 +954,15 @@ static void flush_subtree(const JsonElement *el) {
     return;
   }
 
+  if (jw.lines && !is_preamble_element(el->name)) {
+    /* In line mode every record stands alone, so there is no object to keep
+       in order and nothing has to be held back: task and progress events
+       reach the consumer as they happen instead of at the end of the scan. */
+    write_line_record(el->name.c_str(), json_convert_element(el));
+    log_flush(LOG_JSON);
+    return;
+  }
+
   if (json_element_is_transparent(el->name.c_str())) {
     const char *override_key = transparent_child_key(el->name);
     for (size_t i = 0; i < el->children.size(); i++) {

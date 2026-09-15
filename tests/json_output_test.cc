@@ -555,6 +555,48 @@ static void test_writer_unterminated() {
   }
 }
 
+static void test_writer_lines_are_live() {
+  std::string out;
+  size_t task_line, host_line;
+
+  /* Task events must reach the file as they happen rather than being held
+     back until the scan ends, so that a consumer can follow a long scan. */
+  log_open(LOG_JSON, false, TMPFILE);
+  json_output_enable(true);
+
+  json_mirror_start_element("nmaprun");
+  json_mirror_attribute("scanner", "nmap");
+  json_mirror_start_element("verbose");
+  json_mirror_attribute("level", "1");
+  json_mirror_end_element();
+  json_mirror_start_element("debugging");
+  json_mirror_attribute("level", "0");
+  json_mirror_end_element();
+
+  json_mirror_start_element("taskbegin");
+  json_mirror_attribute("task", "SYN Stealth Scan");
+  json_mirror_attribute("time", "1789429172");
+  json_mirror_end_element();
+
+  json_mirror_start_element("host");
+  json_mirror_start_element("status");
+  json_mirror_attribute("state", "up");
+  json_mirror_end_element();
+  json_mirror_end_element();
+
+  json_mirror_end_element(); /* nmaprun */
+  log_close(LOG_JSON);
+
+  out = read_tmpfile();
+  task_line = out.find("\"type\":\"taskbegin\"");
+  host_line = out.find("\"type\":\"host\"");
+  CHECK(task_line != std::string::npos);
+  CHECK(host_line != std::string::npos);
+  /* The event happened before the host finished, so it is written first. */
+  CHECK(task_line < host_line);
+  CHECK(out.find("\"task\":\"SYN Stealth Scan\"") != std::string::npos);
+}
+
 static void test_writer_ignores_events_after_finish() {
   std::string out;
 
@@ -591,6 +633,7 @@ int main() {
   test_duplicate_promotion();
   test_writer_document();
   test_writer_lines();
+  test_writer_lines_are_live();
   test_writer_unterminated();
   test_writer_ignores_events_after_finish();
 

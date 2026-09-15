@@ -1,5 +1,25 @@
 #Nmap Changelog ($Id$); -*-text-*-
 
+o [Nsock] Fixed an assertion failure that aborted Nmap when --proxies was given
+  a specification with an empty element, such as a leading, trailing or doubled
+  comma. proxy_node_new() asserted that the element was non-empty, which made
+  bad user input crash the process instead of being rejected; the nsock test
+  suite has expected these strings to be rejected all along.
+
+o [Nsock] The nsock test binary now relinks when libnsock or libnbase change,
+  so that a test run cannot silently exercise a stale library.
+
+o [Build] The GitHub Actions workflow now has a job that runs the test suites
+  (Nmap unit tests, nsock tests, NSE library tests and the JSON/XML output
+  equivalence check). The existing matrix only compiled; no test had been run
+  in CI, which is how the nsock failure above went unnoticed. Changes to .nse
+  files also trigger the workflow now.
+
+o [Output] In --json-lines mode, task, progress and host-hint records are
+  written as they happen rather than buffered until the end of the scan, so the
+  stream doubles as live telemetry: a wrapper can drive a progress bar from
+  taskprogress records while consuming hosts as they finish.
+
 o [NSE] Added http-openapi-discover, which looks for an exposed OpenAPI
   (Swagger) description document and reports the specification version, API
   title and version, declared servers, path and operation counts, and security
