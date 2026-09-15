@@ -459,8 +459,10 @@ check-nsock:
 check-zenmap:
 	@cd $(ZENMAPDIR)/test && $(PYTHON) run_tests.py
 
+# "|| exit 1" matters: without it the loop's status is that of the last test,
+# so a failure in any earlier one is silently ignored.
 check-nmap: tests/nmap_dns_test tests/expr_match_test tests/cstring_unescape_test tests/json_output_test
-	for test in $^; do ./$$test; done
+	for test in $^; do ./$$test || exit 1; done
 
 # End-to-end check that -oJ reports the same data as -oX. It scans 127.0.0.1
 # with scan types that do not require privileges, so it can run anywhere the

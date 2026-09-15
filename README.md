@@ -1,6 +1,31 @@
 Nmap [![Build Status](https://github.com/nmap/nmap/actions/workflows/build.yml/badge.svg)](https://github.com/nmap/nmap/actions/workflows/build.yml)
 ====
 
+This tree adds to upstream Nmap
+------------------------------
+
+* **Native JSON output**, `-oJ <file>`, carrying exactly the same information
+  as `-oX` because it mirrors the XML writer rather than duplicating it. NSE
+  structured output becomes ordinary JSON objects and arrays instead of nested
+  `<table>` and `<elem>` elements. Hosts are written as they finish, so memory
+  does not grow with the size of the scan. See [docs/nmap-json.md](docs/nmap-json.md).
+* **`--json-lines`**, newline-delimited JSON where every line is a complete
+  record. It survives an interrupted scan, can be appended to, and carries task
+  and progress events as they happen, so a wrapper can show progress while
+  consuming hosts.
+* **Two NSE scripts for modern attack surface**: `http-openapi-discover` finds
+  exposed OpenAPI/Swagger description documents and reports what they disclose,
+  and `http-graphql-introspection` finds GraphQL endpoints and reports whether
+  introspection is enabled. Their logic lives in the new `openapi.lua` and
+  `graphql.lua` libraries and is covered by unit tests.
+* **Fixes found by running the test suites**: `nmap --proxies` with an empty
+  element aborted on an assertion instead of reporting bad input, the nsock
+  test binary linked against a stale library, `--script-trace` silently dropped
+  bytes after every escaped byte, and `log_close()` left a dangling `FILE *`.
+* **CI that runs the tests.** The build matrix compiled on fourteen platforms
+  but never ran a test; a job now runs the Nmap, nsock and NSE suites plus a
+  JSON/XML output equivalence check.
+
 Nmap is released under a custom license, which is based on (but not compatible
 with) GPLv2. The Nmap license allows free usage by end users, and we also offer
 a commercial license for companies that wish to redistribute Nmap technology

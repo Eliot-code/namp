@@ -1,5 +1,19 @@
 #Nmap Changelog ($Id$); -*-text-*-
 
+o [Nbase] Fixed undefined behavior in the address-set trie: four places shifted
+  1 into the sign bit of an int ((1<<31)), which is undefined in C and was
+  reported by UndefinedBehaviorSanitizer on every scan that matches a target
+  against an address set. The same file already used ((u32)1 << 31) elsewhere;
+  the remaining cases now do too.
+
+o [Build] Added a CI job that builds with AddressSanitizer and
+  UndefinedBehaviorSanitizer and runs the unit tests under them. This is what
+  found the nbase issue above.
+
+o [Build] "make check-nmap" now stops at the first failing test. The loop
+  ignored each test's exit status, so only a failure in the last one could ever
+  fail the build.
+
 o [NSE] Fixed --script-trace output silently dropping bytes. The escaper used
   one index for both reading the input and writing the output, so every
   unprintable byte it escaped as \xNN skipped three input bytes:

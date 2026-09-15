@@ -237,3 +237,32 @@ jobs:
 
       - name: JSON output equivalence
         run: make check-json
+
+  # Build with AddressSanitizer and UndefinedBehaviorSanitizer and run the unit
+  # tests under them. UBSan is what turned up the signed-shift overflow in
+  # nbase_addrset.c; without a job like this, that class of bug only shows up
+  # as a miscompilation years later.
+  sanitizers:
+    name: linux-asan-ubsan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libpcap-dev libpcre2-dev libssl-dev
+
+      - name: Configure and build with sanitizers
+        run: |
+          ./configure --without-zenmap --without-ndiff \
+            CFLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g -O1" \
+            CXXFLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g -O1" \
+            LDFLAGS="-fsanitize=address,undefined"
+          make
+
+      - name: Unit tests under ASan/UBSan
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: make check-nmap
